@@ -1,0 +1,24 @@
+[Unit]
+Description=SmartPanel Hub API
+After=network-online.target homebridge.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=pi
+Group=pi
+WorkingDirectory=/home/pi/smartpanel
+EnvironmentFile=/home/pi/smartpanel/.env
+ExecStart=/home/pi/smartpanel/venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 8100 --workers 1 --log-level info
+Restart=on-failure
+RestartSec=5
+
+# Memory guard — systemd will SIGTERM at MemoryMax
+MemoryHigh=60M
+MemoryMax=80M
+
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

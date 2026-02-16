@@ -1,0 +1,180 @@
+1.
+Implement the FastAPI project skeleton for SmartPanel hub.
+
+Requirements:
+- [x] Create repo structure, requirements.txt, and runnable FastAPI app.
+- [ ] Implement in-memory cache module with typed models (Pydantic).
+- [x] Implement a background scheduler (async tasks) that refreshes cache at configured intervals.
+- [x] Add timeout + error capture per refresh job.
+- [ ] Expose GET /healthz (returns uptime, version, and cache timestamps).
+- [x] Expose GET /api/* endpoints that return cached data (even if placeholder now).
+- [ ] Add config.py that loads env vars with sensible defaults and validates required ones.
+
+Output:
+- [x] Full code for all files you create.
+- [x] A README section "Run locally" and "Run on Pi with systemd".
+- [x] A minimal systemd unit example.
+
+2.
+Add Homebridge UI X integration to the SmartPanel hub.
+
+Constraints:
+- [x] Never fetch Homebridge per-request. Background refresh populates cache.
+- [x] Add a HomebridgeClient using requests/httpx with timeouts.
+- [x] Read env vars:
+  [x] HOMEBRIDGE_URL (e.g., http://localhost:8581)
+  [x] HOMEBRIDGE_USERNAME (optional depending on auth method)
+  [x] HOMEBRIDGE_PASSWORD or token (depending on UI X)
+  [ ] HOMEBRIDGE_VERIFY_TLS (true/false)
+  [ ] LIGHT_IDS (comma-separated) OR a JSON config file path mapping ids -> display names
+- [x] Implement:
+  - [x] refresh_lights(): fetch accessory/light state snapshot into cache.lights
+  - [x] toggle_light(id): use Homebridge API to toggle; then update cache (optimistic + re-sync)
+- [x] Endpoints:
+  [x] GET /api/lights -> list [{id, name, is_on, last_updated}]
+  [x] POST /api/lights/{id}/toggle -> returns updated state
+
+You must:
+- [x] Provide robust error handling if Homebridge is down.
+- [x] Include sample curl commands.
+- [x] Document how to find the correct IDs from Homebridge UI.
+
+3.
+Implement scene endpoints in the SmartPanel hub using Homebridge light toggles.
+
+Constraints:
+- [x] No Homebridge per-request reads; only write actions and then re-sync.
+- [x] Scene membership must be configured (env or JSON). Provide example config.
+
+Implement:
+- [x] POST /api/scenes/all_on
+- [x] POST /api/scenes/movie
+
+Definitions:
+- [x] ALL_ON: turn ON all lights in SCENE_ALL_ON list
+- [ ] MOVIE_MODE: turn OFF all lights in SCENE_MOVIE_OFF list AND optionally turn ON lights in SCENE_MOVIE_ON list
+
+Return:
+- [ ] action result summary: {success_ids:[], failed_ids:[], errors:[], timestamp}
+- [ ] After running, trigger a background refresh_lights() soon (don't block too long).
+
+- [ ] Include a simple rate limiter or "cooldown" (e.g., if same scene called twice within 3 seconds, ignore).
+
+4.
+Add Pi-hole integration.
+
+Implement:
+- [x] A PiHoleClient that queries the Pi-hole API (base URL env PIHOLE_URL, optional auth env PIHOLE_API_TOKEN).
+- [x] Background refresh_pihole() every 30s populates cache.pihole.
+- [ ] GET /api/pihole returns a normalized object:
+  {
+    "status": "enabled/disabled/unknown",
+    "queries_today": number,
+    "blocked_today": number,
+    "percent_blocked": number,
+    "gravity_last_updated": "... if available",
+    "error": null or string,
+    "updated_at": ISO timestamp
+  }
+
+Handle:
+- [x] Pi-hole not reachable
+- [x] Auth required vs not
+- [x] Timeouts
+
+- [x] Add README notes for how to set PIHOLE_URL and token.
+
+5.
+Implement network health checks.
+
+Env:
+- [x] ROUTER_IP (e.g., 192.168.0.1)
+- [ ] PING_TARGETS (default: "1.1.1.1,8.8.8.8")
+- [ ] DNS_TEST_DOMAIN (default: "example.com")
+
+Implement background refresh_network() every 60s that:
+- [x] pings router IP (1–2 packets) and records latency ms and up/down
+- [x] pings one public IP
+- [x] performs DNS resolve for DNS_TEST_DOMAIN using system resolver
+- [ ] Return cache.network as:
+{
+  "router": {"up": bool, "latency_ms": number|null},
+  "internet_ping": {"up": bool, "latency_ms": number|null, "target": "1.1.1.1"},
+  "dns": {"ok": bool, "resolved_ip": "..."|null},
+  "updated_at": "...",
+  "error": null|string
+}
+
+Constraints:
+- [x] Use timeouts; total refresh must be fast (<= 3–5 seconds).
+- [x] No heavy traceroute.
+- [x] Use subprocess ping carefully to avoid blocking.
+
+6.
+Implement weather and sunrise/sunset via a lightweight API (prefer Open-Meteo).
+
+Env:
+- [ ] LAT, LON
+- [ ] TZ (default: America/New_York)
+- [x] Refresh every 60 minutes.
+
+- [ ] Return GET /api/weather/today:
+{
+  "current_temp_f": number|null,
+  "high_f": number|null,
+  "low_f": number|null,
+  "precip_probability": number|null,
+  "sunrise": ISO string,
+  "sunset": ISO string,
+  "updated_at": ISO string,
+  "error": null|string
+}
+
+Constraints:
+- [x] Minimal dependencies.
+- [x] If the API fails, keep the previous data + set error field.
+- [ ] Add a small helper to convert units reliably.
+
+7.
+Implement Apple Notes export ingestion via a local JSON file.
+
+Env:
+- [x] TODOS_FILE_PATH (e.g., /home/bghype/smartpanel/todos.json)
+
+Behavior:
+- [ ] Background refresh_todos() every 30s checks file mtime; only re-read if changed.
+- [ ] Validate schema:
+  { "updated_at": "...", "items": [{"text": "...", "checked": true/false}] }
+- [x] GET /api/todos returns normalized:
+  { "items": [...], "updated_at": "...", "error": null|string }
+
+If file missing or invalid:
+- [x] Return empty items and a helpful error string.
+
+8.
+Finalize Phase 1 for deployment on Raspberry Pi.
+
+Deliverables:
+- [x] requirements.txt locked enough for reproducible install
+- [x] README full setup:
+  - [x] create venv
+  - [x] install deps
+  - [x] set env vars
+  - [x] run uvicorn
+- [ ] Provide a systemd unit file:
+  - [ ] runs as user bghype
+  - [x] restarts on failure
+  - [x] sets working directory
+  - [ ] loads env file /etc/smartpanel.env
+- [ ] Add a /healthz that reports:
+  - [x] uptime
+  - [ ] cache timestamps
+  - [ ] last errors per service
+
+- [x] Add a "Performance Verification" section:
+  - [x] commands: ps aux, free -h, vmstat 1
+  - [x] what RSS should look like
+  - [x] what polling intervals should be
+  - [ ] how to diagnose if swap increases
+
+- [ ] Also include a "Safe Defaults" config that won't overwhelm Homebridge or Pi-hole.
