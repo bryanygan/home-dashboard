@@ -16,6 +16,21 @@ log = logging.getLogger(__name__)
 # Module-level token — safe for single-worker async
 _token: str | None = None
 
+# Light ID filter + display-name overrides (loaded once at first refresh)
+_light_names: dict[str, str] | None = None
+
+
+def _get_light_names() -> dict[str, str]:
+    """Lazy-load light name map so config file is read after startup."""
+    global _light_names
+    if _light_names is None:
+        _light_names = settings.load_light_names()
+        if _light_names:
+            log.info(
+                "Light filter active: %d IDs configured", len(_light_names)
+            )
+    return _light_names
+
 
 async def _login(client: httpx.AsyncClient) -> str:
     global _token
@@ -70,21 +85,38 @@ async def _authed_put(client: httpx.AsyncClient, path: str, body: dict):
 
 
 async def fetch_accessories(client: httpx.AsyncClient) -> list[dict]:
-    """Return simplified list of light-type accessories."""
+    """Return simplified list of light-type accessories.
+
+    When LIGHT_IDS or LIGHT_CONFIG_PATH is set, only matching accessories
+    are returned and display names are overridden where configured.
+    """
     raw = await _authed_get(client, "/api/accessories")
+    name_map = _get_light_names()
+    filter_active = bool(name_map)
+
     lights: list[dict] = []
     for acc in raw:
+        uid = acc.get("uniqueId")
         stype = acc.get("type", "")
         if stype not in ("Lightbulb", "Switch", "Outlet"):
             continue
+
+        # If a filter is configured, skip lights not in the map
+        if filter_active and uid not in name_map:
+            continue
+
         values = acc.get("values", {})
+        hb_name = acc.get(
+            "serviceName",
+            acc.get("accessoryInformation", {}).get("Name", "Unknown"),
+        )
+        # Use configured display name if non-empty, else Homebridge name
+        display_name = name_map.get(uid, "") or hb_name
+
         lights.append(
             {
-                "uniqueId": acc.get("uniqueId"),
-                "name": acc.get(
-                    "serviceName",
-                    acc.get("accessoryInformation", {}).get("Name", "Unknown"),
-                ),
+                "uniqueId": uid,
+                "name": display_name,
                 "type": stype,
                 "on": bool(values.get("On", False)),
                 "brightness": values.get("Brightness"),

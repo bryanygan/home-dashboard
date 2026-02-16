@@ -26,6 +26,14 @@ class Settings:
     HOMEBRIDGE_URL: str = os.getenv("HOMEBRIDGE_URL", "http://localhost:8581")
     HOMEBRIDGE_USERNAME: str = os.getenv("HOMEBRIDGE_USERNAME", "admin")
     HOMEBRIDGE_PASSWORD: str = os.getenv("HOMEBRIDGE_PASSWORD", "")
+    HOMEBRIDGE_VERIFY_TLS: bool = os.getenv("HOMEBRIDGE_VERIFY_TLS", "true").lower() in ("true", "1", "yes")
+
+    # Optional: filter to specific light IDs + override display names.
+    # Set LIGHT_IDS as comma-separated uniqueIds (e.g. "abc123,def456")
+    # OR set LIGHT_CONFIG_PATH to a JSON file: {"abc123": "Kitchen", "def456": "Bedroom"}
+    # When set, only these lights appear in GET /api/lights.
+    LIGHT_IDS: list[str] = _csv_list("LIGHT_IDS")
+    LIGHT_CONFIG_PATH: str = os.getenv("LIGHT_CONFIG_PATH", "")
 
     # --- Pi-hole (v5 admin API) ---
     PIHOLE_URL: str = os.getenv("PIHOLE_URL", "http://localhost")
@@ -85,6 +93,29 @@ class Settings:
             fatal = True
         if fatal:
             sys.exit(1)
+
+
+    @classmethod
+    def load_light_names(cls) -> dict[str, str]:
+        """Return {uniqueId: display_name} from JSON file or empty dict.
+
+        If LIGHT_CONFIG_PATH is set, load the JSON map.
+        If only LIGHT_IDS is set (no config file), return {id: id} so
+        the filter still works but names come from Homebridge.
+        """
+        import json
+
+        path = cls.LIGHT_CONFIG_PATH
+        if path and os.path.exists(path):
+            with open(path, "r", encoding="utf-8") as f:
+                mapping = json.load(f)
+            if isinstance(mapping, dict):
+                return mapping
+            log.warning("LIGHT_CONFIG_PATH %s is not a JSON object; ignoring", path)
+        # Fall back: LIGHT_IDS list with no name overrides
+        if cls.LIGHT_IDS:
+            return {lid: "" for lid in cls.LIGHT_IDS}
+        return {}
 
 
 settings = Settings()

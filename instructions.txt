@@ -25,8 +25,8 @@ Constraints:
   [x] HOMEBRIDGE_URL (e.g., http://localhost:8581)
   [x] HOMEBRIDGE_USERNAME (optional depending on auth method)
   [x] HOMEBRIDGE_PASSWORD or token (depending on UI X)
-  [ ] HOMEBRIDGE_VERIFY_TLS (true/false)
-  [ ] LIGHT_IDS (comma-separated) OR a JSON config file path mapping ids -> display names
+  [x] HOMEBRIDGE_VERIFY_TLS (true/false)
+  [x] LIGHT_IDS (comma-separated) OR a JSON config file path mapping ids -> display names
 - [x] Implement:
   - [x] refresh_lights(): fetch accessory/light state snapshot into cache.lights
   - [x] toggle_light(id): use Homebridge API to toggle; then update cache (optimistic + re-sync)

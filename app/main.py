@@ -50,7 +50,10 @@ async def _refresh_loop(
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    client = httpx.AsyncClient(timeout=httpx.Timeout(5.0))
+    client = httpx.AsyncClient(
+        timeout=httpx.Timeout(5.0),
+        verify=settings.HOMEBRIDGE_VERIFY_TLS,
+    )
     app.state.http = client
 
     # Stagger startup slightly so not everything hits at t=0
