@@ -16,6 +16,18 @@ def _csv_list(key: str) -> list[str]:
     return [x.strip() for x in raw.split(",") if x.strip()]
 
 
+def _env(primary: str, *fallbacks: str, default: str = "") -> str:
+    """Read env var with fallback aliases."""
+    val = os.getenv(primary)
+    if val is not None:
+        return val
+    for fb in fallbacks:
+        val = os.getenv(fb)
+        if val is not None:
+            return val
+    return default
+
+
 class Settings:
     # --- Auth / Server ---
     API_KEY: str = os.getenv("SMARTPANEL_API_KEY", "")
@@ -29,9 +41,6 @@ class Settings:
     HOMEBRIDGE_VERIFY_TLS: bool = os.getenv("HOMEBRIDGE_VERIFY_TLS", "true").lower() in ("true", "1", "yes")
 
     # Optional: filter to specific light IDs + override display names.
-    # Set LIGHT_IDS as comma-separated uniqueIds (e.g. "abc123,def456")
-    # OR set LIGHT_CONFIG_PATH to a JSON file: {"abc123": "Kitchen", "def456": "Bedroom"}
-    # When set, only these lights appear in GET /api/lights.
     LIGHT_IDS: list[str] = _csv_list("LIGHT_IDS")
     LIGHT_CONFIG_PATH: str = os.getenv("LIGHT_CONFIG_PATH", "")
 
@@ -41,12 +50,13 @@ class Settings:
 
     # --- Network checks ---
     ROUTER_IP: str = os.getenv("ROUTER_IP", "192.168.1.1")
-    PING_TARGET: str = os.getenv("PING_TARGET", "1.1.1.1")
-    DNS_CHECK_HOST: str = os.getenv("DNS_CHECK_HOST", "example.com")
+    PING_TARGETS: list[str] = _csv_list("PING_TARGETS") or _csv_list("PING_TARGET") or ["1.1.1.1", "8.8.8.8"]
+    DNS_TEST_DOMAIN: str = _env("DNS_TEST_DOMAIN", "DNS_CHECK_HOST", default="example.com")
 
     # --- Weather (Open-Meteo) ---
-    WEATHER_LAT: str = os.getenv("WEATHER_LAT", "0")
-    WEATHER_LON: str = os.getenv("WEATHER_LON", "0")
+    WEATHER_LAT: str = _env("LAT", "WEATHER_LAT", default="0")
+    WEATHER_LON: str = _env("LON", "WEATHER_LON", default="0")
+    TZ: str = os.getenv("TZ", "America/New_York")
 
     # --- Todos ---
     TODOS_FILE_PATH: str = os.getenv("TODOS_FILE_PATH", "/home/pi/todos.json")
@@ -54,6 +64,7 @@ class Settings:
     # --- Scene light IDs (comma-separated Homebridge uniqueIds) ---
     SCENE_ALL_ON_IDS: list[str] = _csv_list("SCENE_ALL_ON_IDS")
     SCENE_MOVIE_OFF_IDS: list[str] = _csv_list("SCENE_MOVIE_OFF_IDS")
+    SCENE_MOVIE_ON_IDS: list[str] = _csv_list("SCENE_MOVIE_ON_IDS")
 
     # --- Background refresh intervals (seconds) ---
     REFRESH_LIGHTS: int = int(os.getenv("REFRESH_LIGHTS", "15"))
@@ -74,18 +85,15 @@ class Settings:
 
     @classmethod
     def validate(cls) -> None:
-        """Log warnings for missing required/recommended env vars.
-
-        Exits with code 1 only if a truly fatal var is absent.  For most
-        vars we just warn — the background loop will surface the error in
-        the cache so the dashboard can still show partial data.
-        """
+        """Log warnings for missing required/recommended env vars."""
         fatal = False
         for var, hint in cls._REQUIRED.items():
             if not os.getenv(var):
                 log.warning("Missing env var %s — %s", var, hint)
         for var, hint in cls._RECOMMENDED.items():
-            val = os.getenv(var, "0")
+            # Check both the primary and alias
+            primary = "LAT" if var == "WEATHER_LAT" else ("LON" if var == "WEATHER_LON" else var)
+            val = os.getenv(primary, os.getenv(var, "0"))
             if val == "0":
                 log.warning("Env var %s is unset/default — %s", var, hint)
         if not os.getenv("HOMEBRIDGE_URL"):
@@ -94,15 +102,9 @@ class Settings:
         if fatal:
             sys.exit(1)
 
-
     @classmethod
     def load_light_names(cls) -> dict[str, str]:
-        """Return {uniqueId: display_name} from JSON file or empty dict.
-
-        If LIGHT_CONFIG_PATH is set, load the JSON map.
-        If only LIGHT_IDS is set (no config file), return {id: id} so
-        the filter still works but names come from Homebridge.
-        """
+        """Return {uniqueId: display_name} from JSON file or empty dict."""
         import json
 
         path = cls.LIGHT_CONFIG_PATH
@@ -112,7 +114,6 @@ class Settings:
             if isinstance(mapping, dict):
                 return mapping
             log.warning("LIGHT_CONFIG_PATH %s is not a JSON object; ignoring", path)
-        # Fall back: LIGHT_IDS list with no name overrides
         if cls.LIGHT_IDS:
             return {lid: "" for lid in cls.LIGHT_IDS}
         return {}

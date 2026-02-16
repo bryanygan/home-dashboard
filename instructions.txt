@@ -52,13 +52,13 @@ Implement:
 
 Definitions:
 - [x] ALL_ON: turn ON all lights in SCENE_ALL_ON list
-- [ ] MOVIE_MODE: turn OFF all lights in SCENE_MOVIE_OFF list AND optionally turn ON lights in SCENE_MOVIE_ON list
+- [x] MOVIE_MODE: turn OFF all lights in SCENE_MOVIE_OFF list AND optionally turn ON lights in SCENE_MOVIE_ON list
 
 Return:
-- [ ] action result summary: {success_ids:[], failed_ids:[], errors:[], timestamp}
-- [ ] After running, trigger a background refresh_lights() soon (don't block too long).
+- [x] action result summary: {success_ids:[], failed_ids:[], errors:[], timestamp}
+- [x] After running, trigger a background refresh_lights() soon (don't block too long).
 
-- [ ] Include a simple rate limiter or "cooldown" (e.g., if same scene called twice within 3 seconds, ignore).
+- [x] Include a simple rate limiter or "cooldown" (e.g., if same scene called twice within 3 seconds, ignore).
 
 4.
 Add Pi-hole integration.
@@ -66,7 +66,7 @@ Add Pi-hole integration.
 Implement:
 - [x] A PiHoleClient that queries the Pi-hole API (base URL env PIHOLE_URL, optional auth env PIHOLE_API_TOKEN).
 - [x] Background refresh_pihole() every 30s populates cache.pihole.
-- [ ] GET /api/pihole returns a normalized object:
+- [x] GET /api/pihole returns a normalized object:
   {
     "status": "enabled/disabled/unknown",
     "queries_today": number,
@@ -89,14 +89,14 @@ Implement network health checks.
 
 Env:
 - [x] ROUTER_IP (e.g., 192.168.0.1)
-- [ ] PING_TARGETS (default: "1.1.1.1,8.8.8.8")
-- [ ] DNS_TEST_DOMAIN (default: "example.com")
+- [x] PING_TARGETS (default: "1.1.1.1,8.8.8.8")
+- [x] DNS_TEST_DOMAIN (default: "example.com")
 
 Implement background refresh_network() every 60s that:
 - [x] pings router IP (1–2 packets) and records latency ms and up/down
 - [x] pings one public IP
 - [x] performs DNS resolve for DNS_TEST_DOMAIN using system resolver
-- [ ] Return cache.network as:
+- [x] Return cache.network as:
 {
   "router": {"up": bool, "latency_ms": number|null},
   "internet_ping": {"up": bool, "latency_ms": number|null, "target": "1.1.1.1"},
@@ -114,11 +114,11 @@ Constraints:
 Implement weather and sunrise/sunset via a lightweight API (prefer Open-Meteo).
 
 Env:
-- [ ] LAT, LON
-- [ ] TZ (default: America/New_York)
+- [x] LAT, LON
+- [x] TZ (default: America/New_York)
 - [x] Refresh every 60 minutes.
 
-- [ ] Return GET /api/weather/today:
+- [x] Return GET /api/weather/today:
 {
   "current_temp_f": number|null,
   "high_f": number|null,
@@ -133,7 +133,7 @@ Env:
 Constraints:
 - [x] Minimal dependencies.
 - [x] If the API fails, keep the previous data + set error field.
-- [ ] Add a small helper to convert units reliably.
+- [x] Add a small helper to convert units reliably.
 
 7.
 Implement Apple Notes export ingestion via a local JSON file.
@@ -142,8 +142,8 @@ Env:
 - [x] TODOS_FILE_PATH (e.g., /home/bghype/smartpanel/todos.json)
 
 Behavior:
-- [ ] Background refresh_todos() every 30s checks file mtime; only re-read if changed.
-- [ ] Validate schema:
+- [x] Background refresh_todos() every 30s checks file mtime; only re-read if changed.
+- [x] Validate schema:
   { "updated_at": "...", "items": [{"text": "...", "checked": true/false}] }
 - [x] GET /api/todos returns normalized:
   { "items": [...], "updated_at": "...", "error": null|string }
@@ -161,20 +161,20 @@ Deliverables:
   - [x] install deps
   - [x] set env vars
   - [x] run uvicorn
-- [ ] Provide a systemd unit file:
-  - [ ] runs as user bghype
+- [x] Provide a systemd unit file:
+  - [x] runs as user bghype
   - [x] restarts on failure
   - [x] sets working directory
-  - [ ] loads env file /etc/smartpanel.env
-- [ ] Add a /healthz that reports:
+  - [x] loads env file /etc/smartpanel.env
+- [x] Add a /healthz that reports:
   - [x] uptime
-  - [ ] cache timestamps
-  - [ ] last errors per service
+  - [x] cache timestamps
+  - [x] last errors per service
 
 - [x] Add a "Performance Verification" section:
   - [x] commands: ps aux, free -h, vmstat 1
   - [x] what RSS should look like
   - [x] what polling intervals should be
-  - [ ] how to diagnose if swap increases
+  - [x] how to diagnose if swap increases
 
-- [ ] Also include a "Safe Defaults" config that won't overwhelm Homebridge or Pi-hole.
+- [x] Also include a "Safe Defaults" config that won't overwhelm Homebridge or Pi-hole.

@@ -6,6 +6,7 @@ single-light toggle, and batch scene actions.
 from __future__ import annotations
 
 import logging
+import time
 
 import httpx
 
@@ -156,9 +157,13 @@ async def toggle_light(client: httpx.AsyncClient, unique_id: str) -> dict:
 async def set_lights(
     client: httpx.AsyncClient, unique_ids: list[str], *, on: bool
 ) -> dict:
-    """Set a batch of lights on or off. Returns affected count + errors."""
+    """Set a batch of lights on or off.
+
+    Returns {success_ids, failed_ids, errors, timestamp}.
+    """
+    success_ids: list[str] = []
+    failed_ids: list[str] = []
     errors: list[dict] = []
-    affected = 0
     for uid in unique_ids:
         try:
             await _authed_put(
@@ -166,8 +171,14 @@ async def set_lights(
                 f"/api/accessories/{uid}",
                 {"characteristicType": "On", "value": on},
             )
-            affected += 1
+            success_ids.append(uid)
         except Exception as e:
             log.warning("Failed to set light %s to %s: %s", uid, on, e)
+            failed_ids.append(uid)
             errors.append({"uniqueId": uid, "error": str(e)})
-    return {"affected": affected, "errors": errors}
+    return {
+        "success_ids": success_ids,
+        "failed_ids": failed_ids,
+        "errors": errors,
+        "timestamp": time.time(),
+    }

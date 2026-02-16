@@ -5,11 +5,11 @@ Wants=network-online.target
 
 [Service]
 Type=simple
-User=pi
-Group=pi
-WorkingDirectory=/home/pi/smartpanel
-EnvironmentFile=/home/pi/smartpanel/.env
-ExecStart=/home/pi/smartpanel/venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 8100 --workers 1 --log-level info
+User=bghype
+Group=bghype
+WorkingDirectory=/home/bghype/smartpanel
+EnvironmentFile=/etc/smartpanel.env
+ExecStart=/home/bghype/smartpanel/venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 8100 --workers 1 --log-level info
 Restart=on-failure
 RestartSec=5
 

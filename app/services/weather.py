@@ -12,8 +12,15 @@ log = logging.getLogger(__name__)
 OPEN_METEO_URL = "https://api.open-meteo.com/v1/forecast"
 
 
+def c_to_f(celsius: float | None) -> float | None:
+    """Convert Celsius to Fahrenheit. Returns None if input is None."""
+    if celsius is None:
+        return None
+    return round(celsius * 9 / 5 + 32, 1)
+
+
 async def fetch_today(client: httpx.AsyncClient) -> dict:
-    """Fetch today's weather summary + sunrise/sunset."""
+    """Fetch today's weather summary + sunrise/sunset in Fahrenheit."""
     params = {
         "latitude": settings.WEATHER_LAT,
         "longitude": settings.WEATHER_LON,
@@ -22,7 +29,7 @@ async def fetch_today(client: httpx.AsyncClient) -> dict:
             "temperature_2m_max,temperature_2m_min,"
             "precipitation_probability_max,sunrise,sunset"
         ),
-        "timezone": "auto",
+        "timezone": settings.TZ,
         "forecast_days": "1",
     }
     resp = await client.get(OPEN_METEO_URL, params=params)
@@ -33,10 +40,10 @@ async def fetch_today(client: httpx.AsyncClient) -> dict:
     current = data.get("current", {})
 
     return {
-        "temperature_c": current.get("temperature_2m"),
-        "high_c": daily.get("temperature_2m_max", [None])[0],
-        "low_c": daily.get("temperature_2m_min", [None])[0],
-        "precipitation_chance": daily.get(
+        "current_temp_f": c_to_f(current.get("temperature_2m")),
+        "high_f": c_to_f(daily.get("temperature_2m_max", [None])[0]),
+        "low_f": c_to_f(daily.get("temperature_2m_min", [None])[0]),
+        "precip_probability": daily.get(
             "precipitation_probability_max", [None]
         )[0],
         "sunrise": daily.get("sunrise", [None])[0],
