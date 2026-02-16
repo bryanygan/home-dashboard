@@ -10,7 +10,7 @@ from fastapi import Depends, FastAPI
 
 from app.auth import verify_api_key
 from app.cache import cache
-from app.config import settings
+from app.config import Settings, settings
 from app.routes import health, lights
 from app.routes import network as network_routes
 from app.routes import pihole as pihole_routes
@@ -101,6 +101,8 @@ async def lifespan(app: FastAPI):
 
     # Placeholder for future fitness integration
     cache.set("fitness", {"placeholder": True})
+
+    Settings.validate()
 
     log.info(
         "SmartPanel started — %d background jobs, port %s",

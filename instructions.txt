@@ -3,12 +3,12 @@ Implement the FastAPI project skeleton for SmartPanel hub.
 
 Requirements:
 - [x] Create repo structure, requirements.txt, and runnable FastAPI app.
-- [ ] Implement in-memory cache module with typed models (Pydantic).
+- [x] Implement in-memory cache module with typed models (Pydantic).
 - [x] Implement a background scheduler (async tasks) that refreshes cache at configured intervals.
 - [x] Add timeout + error capture per refresh job.
-- [ ] Expose GET /healthz (returns uptime, version, and cache timestamps).
+- [x] Expose GET /healthz (returns uptime, version, and cache timestamps).
 - [x] Expose GET /api/* endpoints that return cached data (even if placeholder now).
-- [ ] Add config.py that loads env vars with sensible defaults and validates required ones.
+- [x] Add config.py that loads env vars with sensible defaults and validates required ones.
 
 Output:
 - [x] Full code for all files you create.

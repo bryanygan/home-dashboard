@@ -1,10 +1,14 @@
 from __future__ import annotations
 
+import logging
 import os
+import sys
 
 from dotenv import load_dotenv
 
 load_dotenv()
+
+log = logging.getLogger(__name__)
 
 
 def _csv_list(key: str) -> list[str]:
@@ -49,6 +53,38 @@ class Settings:
     REFRESH_NETWORK: int = int(os.getenv("REFRESH_NETWORK", "60"))
     REFRESH_WEATHER: int = int(os.getenv("REFRESH_WEATHER", "3600"))
     REFRESH_TODOS: int = int(os.getenv("REFRESH_TODOS", "30"))
+
+    # --- Validation ---
+    _REQUIRED = {
+        "HOMEBRIDGE_PASSWORD": "Homebridge refresh will fail without credentials",
+        "PIHOLE_API_TOKEN": "Pi-hole stats may be incomplete without an API token",
+    }
+    _RECOMMENDED = {
+        "WEATHER_LAT": "Weather data will be for lat=0/lon=0 (Gulf of Guinea)",
+        "WEATHER_LON": "Weather data will be for lat=0/lon=0 (Gulf of Guinea)",
+    }
+
+    @classmethod
+    def validate(cls) -> None:
+        """Log warnings for missing required/recommended env vars.
+
+        Exits with code 1 only if a truly fatal var is absent.  For most
+        vars we just warn — the background loop will surface the error in
+        the cache so the dashboard can still show partial data.
+        """
+        fatal = False
+        for var, hint in cls._REQUIRED.items():
+            if not os.getenv(var):
+                log.warning("Missing env var %s — %s", var, hint)
+        for var, hint in cls._RECOMMENDED.items():
+            val = os.getenv(var, "0")
+            if val == "0":
+                log.warning("Env var %s is unset/default — %s", var, hint)
+        if not os.getenv("HOMEBRIDGE_URL"):
+            log.error("HOMEBRIDGE_URL is not set — cannot reach Homebridge")
+            fatal = True
+        if fatal:
+            sys.exit(1)
 
 
 settings = Settings()
