@@ -1,18 +1,20 @@
 # SmartPanel — Phase 1 Backend
 
-A lightweight, cache-first local hub API designed for Raspberry Pi 3 Model B.
+A lightweight, cache-first local hub API for a local Linux server (mini PC).
 Aggregates Homebridge, Pi-hole, network health, weather, and todos into a
 single fast API that will power an iPad wall dashboard.
 
 ## Quick Start
 
-### 1. Clone to Pi
+### 1. Clone to mini PC
 
 ```bash
 cd /home/bghype
 git clone <your-repo-url> smartpanel
 cd smartpanel
 ```
+
+> Adjust the path to match your mini PC username and preferred install location.
 
 ### 2. Create virtualenv and install
 
@@ -130,47 +132,45 @@ PIHOLE_API_TOKEN=your_token_here
 
 ## Safe Defaults
 
-These defaults are tuned to avoid overloading Homebridge or Pi-hole on a
-resource-constrained Pi 3B. Only change them if you have a specific reason:
+These defaults avoid unnecessary load on Homebridge and Pi-hole. A mini PC
+has plenty of headroom, so feel free to tune intervals down if you want
+snappier updates — Homebridge is typically the bottleneck, not the server.
 
 ```bash
-# Refresh intervals — don't go lower than these on a Pi 3B
-REFRESH_LIGHTS=15     # Homebridge can bog down below ~10s
-REFRESH_PIHOLE=30     # Pi-hole API is fast but no need to hammer it
-REFRESH_NETWORK=60    # Pings are cheap but 60s is plenty for a dashboard
+# Refresh intervals
+REFRESH_LIGHTS=15     # Homebridge can bog down below ~10s; 5-10s is fine on fast hardware
+REFRESH_PIHOLE=30     # Pi-hole API is fast; can go to 15s if desired
+REFRESH_NETWORK=60    # Pings are cheap; 60s is plenty for a dashboard
 REFRESH_WEATHER=3600  # Open-Meteo rate-limits at ~10k/day; 1h is fine
 REFRESH_TODOS=30      # Local file read; mtime-checked so no-ops are free
 
-# uvicorn — always use 1 worker on Pi 3B (each worker ~25-40 MB)
-# --workers 1 is already set in the systemd unit
+# uvicorn — 2 workers is a good default on a mini PC (each worker ~25-40 MB)
+# Increase to 4 if you want lower latency under load; already set in smartpanel.service
 
 # systemd memory guard (already in smartpanel.service)
-# MemoryHigh=60M    # soft limit — systemd reclaims aggressively
-# MemoryMax=80M     # hard limit — SIGTERM if exceeded
+# MemoryHigh=256M   # soft limit — adjust to your mini PC's available RAM
+# MemoryMax=512M    # hard limit — SIGTERM if exceeded
 ```
 
 ## Performance Verification
 
-Run these on the Pi after starting SmartPanel:
+Run these after starting SmartPanel:
 
 ```bash
 # 1. Is the process running?
 ps aux | grep uvicorn
 
-# 2. Memory usage (RSS) — target: <60 MB
+# 2. Memory usage (RSS) — target: <200 MB per worker; mini PCs have headroom
 ps -o pid,rss,vsz,comm -p $(pgrep -f "uvicorn app.main")
 # RSS column is in KB — divide by 1024 for MB
 
 # 3. System memory overview
 free -m
 
-# 4. Swap activity (should be near-zero si/so columns)
-vmstat 1 5
-
-# 5. Health check
+# 4. Health check
 curl -s http://localhost:8100/healthz | python3 -m json.tool
 
-# 6. All endpoints return data (not "not yet fetched")
+# 5. All endpoints return data (not "not yet fetched")
 for ep in lights pihole network weather/today todos; do
   echo "--- /api/$ep ---"
   curl -s http://localhost:8100/api/$ep | python3 -m json.tool
@@ -202,36 +202,21 @@ sudo journalctl -u smartpanel --since "5 min ago" --no-pager
 sleep 600 && ps -o pid,rss,comm -p $(pgrep -f "uvicorn app.main")
 ```
 
-## Diagnosing Swap Pressure
+## Diagnosing High Memory or CPU
 
-If you see SmartPanel using swap or the system feeling sluggish:
+SmartPanel should idle well under 100 MB per worker on a mini PC. If RSS keeps
+climbing or CPU is unexpectedly high:
 
 ```bash
-# Check current swap usage
-free -m
-# Look at "Swap:" line — used should be near 0
+# Check per-worker RSS
+ps -o pid,rss,vsz,comm -p $(pgrep -f "uvicorn app.main")
 
-# Watch swap in/out activity in real time (si/so columns)
-vmstat 1 10
-# si = swap-in (KB/s from disk), so = swap-out (KB/s to disk)
-# Both should be 0 or near-0 during normal operation
+# If RSS creeps up over time, check Homebridge isn't returning a huge list:
+curl -s http://localhost:8100/api/lights | python3 -c "import sys,json; print(len(json.load(sys.stdin)['data']))"
 
-# Find which processes are using swap
-for pid in /proc/[0-9]*; do
-  name=$(cat $pid/comm 2>/dev/null)
-  swap=$(grep VmSwap $pid/status 2>/dev/null | awk '{print $2}')
-  [ -n "$swap" ] && [ "$swap" -gt 0 ] && echo "$swap kB  $name ($(basename $pid))"
-done | sort -rn | head -10
+# Restart to reset memory
+sudo systemctl restart smartpanel
 
-# SmartPanel-specific: check if RSS is creeping up
-# Run this every few minutes and compare
-ps -o pid,rss,vsz -p $(pgrep -f "uvicorn app.main")
-
-# If RSS exceeds 60 MB:
-# 1. Check REFRESH_* intervals aren't set too low (below safe defaults)
-# 2. Check if Homebridge is returning a huge accessory list
-#    curl -s http://localhost:8100/api/lights | python3 -c "import sys,json; print(len(json.load(sys.stdin)['data']))"
-# 3. Restart SmartPanel to reset memory
-#    sudo systemctl restart smartpanel
-# 4. If swap persists, reduce REFRESH_LIGHTS to 30 and REFRESH_PIHOLE to 60
+# If you're hammering Homebridge, raise the refresh interval:
+# REFRESH_LIGHTS=30  (in /etc/smartpanel.env, then restart)
 ```
