@@ -59,7 +59,7 @@ class Settings:
     TZ: str = os.getenv("TZ", "America/New_York")
 
     # --- Todos ---
-    TODOS_FILE_PATH: str = os.getenv("TODOS_FILE_PATH", "/home/pi/todos.json")
+    TODOS_FILE_PATH: str = os.getenv("TODOS_FILE_PATH", "/home/bghype/smartpanel/todos.json")
 
     # --- Scene light IDs (comma-separated Homebridge uniqueIds) ---
     SCENE_ALL_ON_IDS: list[str] = _csv_list("SCENE_ALL_ON_IDS")

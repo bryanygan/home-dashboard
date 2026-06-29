@@ -1,4 +1,4 @@
-"""SmartPanel — lightweight local hub API for Raspberry Pi."""
+"""SmartPanel — lightweight local hub API for a local Linux server."""
 from __future__ import annotations
 
 import asyncio

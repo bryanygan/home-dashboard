@@ -152,7 +152,7 @@ If file missing or invalid:
 - [x] Return empty items and a helpful error string.
 
 8.
-Finalize Phase 1 for deployment on Raspberry Pi.
+Finalize Phase 1 for deployment on mini PC / local Linux server.
 
 Deliverables:
 - [x] requirements.txt locked enough for reproducible install
@@ -166,15 +166,17 @@ Deliverables:
   - [x] restarts on failure
   - [x] sets working directory
   - [x] loads env file /etc/smartpanel.env
+  - [x] 2 workers (tuned for mini PC; Pi-era 1-worker limit removed)
+  - [x] memory limits raised to 256M/512M (no longer constrained by Pi 3B)
 - [x] Add a /healthz that reports:
   - [x] uptime
   - [x] cache timestamps
   - [x] last errors per service
 
 - [x] Add a "Performance Verification" section:
-  - [x] commands: ps aux, free -h, vmstat 1
+  - [x] commands: ps aux, free -h
   - [x] what RSS should look like
   - [x] what polling intervals should be
-  - [x] how to diagnose if swap increases
+  - [x] how to diagnose if memory or CPU runs high
 
 - [x] Also include a "Safe Defaults" config that won't overwhelm Homebridge or Pi-hole.
